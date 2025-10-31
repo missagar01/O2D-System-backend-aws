@@ -59,6 +59,35 @@
 
 
 
+// import oracledb from 'oracledb';
+// import fs from 'fs';
+// import path from 'path';
+// import { fileURLToPath } from 'url';
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+
+// export function initOracleClient() {
+//   try {
+//     // ✅ Detect the Instant Client directory dynamically
+//     const libDir = path.resolve('oracle_client/instantclient_23_26');
+
+//     if (fs.existsSync(libDir)) {
+//       oracledb.initOracleClient({ libDir });
+//       console.log('✅ Oracle Thick Client initialized at:', libDir);
+//     } else {
+//       console.log('⚠️ Instant Client not found, using Thin mode');
+//     }
+//   } catch (err) {
+//     console.error('❌ Failed to initialize Oracle Client:', err);
+//   }
+// }
+
+
+
+
+// src/config/oracleClient.js
+
 import oracledb from 'oracledb';
 import fs from 'fs';
 import path from 'path';
@@ -67,17 +96,35 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Initialize Oracle Client (Thick mode preferred)
+ * Automatically falls back to Thin mode if the client isn't found.
+ */
 export function initOracleClient() {
   try {
-    // ✅ Detect the Instant Client directory dynamically
-    const libDir = path.resolve('oracle_client/instantclient_23_26');
+    // ✅ Detect Instant Client directory dynamically
+    const libDir = path.resolve('/app/oracle_client/instantclient_23_26');
+
+    console.log('🔍 Checking Oracle Instant Client at:', libDir);
 
     if (fs.existsSync(libDir)) {
-      oracledb.initOracleClient({ libDir });
-      console.log('✅ Oracle Thick Client initialized at:', libDir);
+      const files = fs.readdirSync(libDir);
+      console.log('📂 Oracle Client directory contents:', files);
+
+      // ✅ Check for the main library files
+      if (files.some(f => f.includes('libclntsh')) && files.some(f => f.includes('libnnz'))) {
+        oracledb.initOracleClient({ libDir });
+        console.log('✅ Oracle Thick Client initialized at:', libDir);
+      } else {
+        console.warn('⚠️ Oracle libraries missing in folder, switching to Thin mode.');
+      }
     } else {
-      console.log('⚠️ Instant Client not found, using Thin mode');
+      console.log('⚠️ Instant Client not found, using Thin mode.');
     }
+
+    // ✅ Optional: Display client info
+    console.log('🧩 Node-oracledb version:', oracledb.versionString);
+
   } catch (err) {
     console.error('❌ Failed to initialize Oracle Client:', err);
   }

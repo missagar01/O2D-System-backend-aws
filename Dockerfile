@@ -33,6 +33,7 @@
 
 
 # Use Node 18 base image
+# Use Node 18 base image
 FROM node:18-slim
 
 # Install required dependencies for Oracle Client
@@ -52,17 +53,15 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# ✅ Ensure Oracle Instant Client exists (from your repo)
-#    If not committed, it will still be downloaded in npm postinstall
+# ✅ Copy all code including oracle_client
 COPY . .
 
-# ✅ Explicitly add Oracle Client path to LD_LIBRARY_PATH and PATH
+# ✅ Configure Oracle Instant Client
 ENV LD_LIBRARY_PATH=/app/oracle_client/instantclient_23_26
-ENV PATH=$LD_LIBRARY_PATH:$PATH
+ENV PATH=/app/oracle_client/instantclient_23_26:$PATH
 
-# ✅ Confirm directory for debugging (optional)
-RUN echo "Oracle Instant Client path: $LD_LIBRARY_PATH" && \
-    ls -la /app/oracle_client/instantclient_23_26 || true
+# ✅ Register the Oracle libs system-wide
+RUN echo "/app/oracle_client/instantclient_23_26" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 
 # Expose app port
 EXPOSE 3007
