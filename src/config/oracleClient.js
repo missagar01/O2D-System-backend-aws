@@ -32,6 +32,33 @@
 //   }
 // }
 
+// import oracledb from 'oracledb';
+// import fs from 'fs';
+// import path from 'path';
+// import { fileURLToPath } from 'url';
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+
+// export function initOracleClient() {
+//   try {
+//     // ✅ Absolute path to the Instant Client folder in Render
+//     const libDir = '/opt/render/project/src/oracle_client/instantclient_23_26';
+
+//     if (fs.existsSync(libDir)) {
+//       oracledb.initOracleClient({ libDir });
+//       console.log('✅ Oracle Thick Client initialized at:', libDir);
+//     } else {
+//       console.log('⚠️ Instant Client not found, using Thin mode');
+//     }
+//   } catch (err) {
+//     console.error('❌ Failed to initialize Oracle Client:', err);
+//   }
+// }
+
+
+
+
 import oracledb from 'oracledb';
 import fs from 'fs';
 import path from 'path';
@@ -42,8 +69,8 @@ const __dirname = path.dirname(__filename);
 
 export function initOracleClient() {
   try {
-    // ✅ Absolute path to the Instant Client folder in Render
-    const libDir = '/opt/render/project/src/oracle_client/instantclient_23_26';
+    // ✅ Detect the Instant Client directory dynamically
+    const libDir = path.resolve('oracle_client/instantclient_23_26');
 
     if (fs.existsSync(libDir)) {
       oracledb.initOracleClient({ libDir });
