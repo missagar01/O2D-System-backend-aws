@@ -1,7 +1,41 @@
-# Use Node 18
+# # Use Node 18
+# FROM node:18-slim
+
+# # Install dependencies required for Oracle DB
+# RUN apt-get update && apt-get install -y \
+#     libaio1 \
+#     unzip \
+#     curl \
+#     python3 \
+#     make \
+#     g++ \
+#     && rm -rf /var/lib/apt/lists/*
+
+# # Set working directory
+# WORKDIR /app
+
+# # Copy package files and install dependencies
+# COPY package*.json ./
+# RUN npm install
+
+# # ✅ Copy all code
+# COPY . .
+
+# # ✅ Set Oracle Instant Client path
+# ENV LD_LIBRARY_PATH=/app/oracle_client/instantclient_23_26
+
+# # ✅ Expose your app port
+# EXPOSE 3007
+
+# # Start the app
+# CMD ["node", "src/server.js"]
+
+
+
+# Use Node 18 base image
 FROM node:18-slim
 
-# Install dependencies required for Oracle DB
+# Install required dependencies for Oracle Client
 RUN apt-get update && apt-get install -y \
     libaio1 \
     unzip \
@@ -18,14 +52,20 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# ✅ Copy all code
+# ✅ Ensure Oracle Instant Client exists (from your repo)
+#    If not committed, it will still be downloaded in npm postinstall
 COPY . .
 
-# ✅ Set Oracle Instant Client path
+# ✅ Explicitly add Oracle Client path to LD_LIBRARY_PATH and PATH
 ENV LD_LIBRARY_PATH=/app/oracle_client/instantclient_23_26
+ENV PATH=$LD_LIBRARY_PATH:$PATH
 
-# ✅ Expose your app port
+# ✅ Confirm directory for debugging (optional)
+RUN echo "Oracle Instant Client path: $LD_LIBRARY_PATH" && \
+    ls -la /app/oracle_client/instantclient_23_26 || true
+
+# Expose app port
 EXPOSE 3007
 
-# Start the app
+# Start app
 CMD ["node", "src/server.js"]
