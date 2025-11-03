@@ -44,7 +44,7 @@
 import {
   getPendingSecondWeight,
   getSecondWeightHistory,
-} from "../services/secondWeigh.service.js";
+} from "../services/secondWeight.service.js";
 
 export async function fetchPendingSecondWeight(req, res) {
   try {
