@@ -19,7 +19,7 @@ build/
 logs/
 *.log
 debug.log
-
+oracle_client
 # OS files
 .DS_Store
 Thumbs.db
