@@ -10,8 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// === Thick mode setup ===
-// Make sure this path matches your Instant Client installation
 oracledb.initOracleClient({ libDir: "C:/oracle/instantclient_23_9" });
 
 let pool;

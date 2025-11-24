@@ -31,11 +31,6 @@ jobs:
       - name: Build (if present)
         run: npm run build --if-present
 
-      # Agar tests hain to:
-      # - name: Run tests
-      #   run: npm test
-
-  # 2) Deploy job (tumhare EC2 self-hosted runner par)
   deploy:
     needs: test          # test job pass hone ke baad hi chalega
     runs-on: self-hosted # yahi label tumhare runner ka hai
