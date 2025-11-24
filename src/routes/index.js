@@ -4,6 +4,7 @@ import secondWeightRoutes from "./secondWeight.routes.js"; // 👈 Add this
 import invoiceRoutes from "./invoice.routes.js"; // 👈 Add this
 import gateOutRoutes from "./gateOut.routes.js";
 import paymentRoutes from "./payment.routes.js";
+import authRoutes from "./auth.routes.js";
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use("/second-weight", secondWeightRoutes);
 router.use("/invoice", invoiceRoutes);
 router.use("/gate-out", gateOutRoutes);
 router.use("/payment", paymentRoutes);
+router.use("/auth", authRoutes);
 
 export default router;

@@ -10,3 +10,5 @@ router.get("/pending", fetchPendingSecondWeight);
 router.get("/history", fetchSecondWeightHistory);
 
 export default router;
+
+

@@ -12,7 +12,7 @@ app.use(cors());
 
 // === Thick mode setup ===
 // Make sure this path matches your Instant Client installation
-oracledb.initOracleClient({ libDir: "/opt/oracle/instantclient_23_3_arm64" });
+oracledb.initOracleClient({ libDir: "C:/oracle/instantclient_23_9" });
 
 let pool;
 

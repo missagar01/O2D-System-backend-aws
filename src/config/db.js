@@ -8,6 +8,7 @@ dotenv.config();
 
 let pool;
 let sshTunnelActive = false;
+const LOCAL_ORACLE_PORT = parseInt(process.env.LOCAL_ORACLE_PORT || '1521', 10);
 
 // Validate all required environment variables
 function validateEnv() {
@@ -57,7 +58,7 @@ export async function initPool() {
     const dbConfig = {
       user: process.env.ORACLE_USER,
       password: process.env.ORACLE_PASSWORD,
-      connectString: "127.0.0.1:1521/ora11g",
+      connectString: `127.0.0.1:${LOCAL_ORACLE_PORT}/ora11g`,
       poolMin: 1,
       poolMax: 4,
       poolIncrement: 1,

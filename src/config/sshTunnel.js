@@ -7,7 +7,7 @@ dotenv.config();
 
 let sshClient = null;
 let tunnelServer = null;
-const LOCAL_PORT = 1521;
+const LOCAL_PORT = parseInt(process.env.LOCAL_ORACLE_PORT || '1521', 10);
 
 export async function initSSHTunnel() {
   return new Promise((resolve, reject) => {
@@ -84,12 +84,18 @@ export async function initSSHTunnel() {
       reject(err);
     });
 
+    sshClient.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
+      // Some servers require keyboard-interactive even when password is provided
+      finish([SSH_PASSWORD]);
+    });
+
     // SSH connection configuration
     const sshConfig = {
       host: SSH_HOST,
       port: SSH_PORT,
       username: SSH_USER,
       password: SSH_PASSWORD,
+      tryKeyboard: true, // allow keyboard-interactive fallback if server requires it
       readyTimeout: 30000,
       keepaliveInterval: 10000,
       algorithms: {
