@@ -1,7 +1,4 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: Node.js CI
+name: CI & Deploy Backend
 
 on:
   push:
@@ -10,22 +7,73 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  # 1) Test / Build job (GitHub ke ubuntu runner par)
+  test:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [20.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      # Agar tests hain to:
+      # - name: Run tests
+      #   run: npm test
+
+  # 2) Deploy job (tumhare EC2 self-hosted runner par)
+  deploy:
+    needs: test          # test job pass hone ke baad hi chalega
+    runs-on: self-hosted # yahi label tumhare runner ka hai
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install dependencies (production)
+        run: npm install --omit=dev
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      - name: Show current directory
+        run: pwd && ls
+
+      - name: Start/Restart app with PM2
+        run: |
+          # PM2 install (agar pehle se global hai to skip ho jayega)
+          sudo npm install -g pm2
+
+          # Yaha apni start file ka correct path daalo
+          # Example: dist/index.js ya dist/server.js
+          APP_FILE="dist/index.js"
+
+          # Agar PM2 process pehli baar hai
+          if ! pm2 describe o2d-backend > /dev/null 2>&1; then
+            echo "Starting app first time with PM2..."
+            pm2 start "$APP_FILE" --name o2d-backend
+          else
+            echo "App already exists in PM2, restarting..."
+            pm2 restart o2d-backend
+          fi
+
+          pm2 save
