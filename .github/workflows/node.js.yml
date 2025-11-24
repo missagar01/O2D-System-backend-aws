@@ -34,7 +34,8 @@ jobs:
         run: |
           sudo npm install -g pm2
 
-          APP_FILE="dist/index.js"   # yahan tum apni actual file set karoge
+          # 👉 Tumhara actual start file
+          APP_FILE="src/server.js"
 
           if [ ! -f "$APP_FILE" ]; then
             echo "ERROR: $APP_FILE file nahi mila, ls -R se check karte hain"

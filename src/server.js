@@ -1,7 +1,7 @@
 import app from "./app.js";
 import { initPool, closePool } from "./config/db.js";
 
-const port = process.env.PORT || 3007;
+const port = process.env.PORT || 3006;
 
 const server = app.listen(port, async () => {
   try {
