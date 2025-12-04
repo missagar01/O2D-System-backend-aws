@@ -2,7 +2,8 @@ import { getConnection } from "../config/db.js";
 import oracledb from "oracledb";
 
 // 🟢 Pending Gate Out Data with Filters
-export async function getPendingGateOutData(offset = 0, limit = 50, customer = '', search = '') {
+export async function getPendingGateOutData(offset = 0, limit = 50, customer = '', search = '')
+ {
   let baseQuery = `
     SELECT * FROM (
       SELECT a.*, ROWNUM rnum FROM (
@@ -131,7 +132,6 @@ export async function getGateOutHistoryData(offset = 0, limit = 50, customer = '
     if (connection) await connection.close();
   }
 }
-
 
 
 export async function getAllGateOutCustomers() {

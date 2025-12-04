@@ -1,159 +1,130 @@
-# Oracle + Postgres Backend
+# Oracle + Postgres Weighbridge API
 
-Express-based API that:
-- Opens an SSH tunnel to reach Oracle (for weighbridge data).
-- Uses Oracle for business data and Postgres (AWS RDS) for auth.
-- Issues JWTs for login (passwords stored as provided; no hashing by design).
+Express API that opens an SSH tunnel to Oracle (weighbridge + gate + payments data) and uses Postgres (AWS RDS) for authentication. JWTs are issued on login; passwords are intentionally stored as provided (no hashing).
+
+## Stack & Architecture
+- Node.js 20+, Express, CORS, JWT
+- Oracle (business data) reached via SSH tunnel + Instant Client (Thick if available, otherwise Thin)
+- Postgres (auth) via `pg` pool with optional SSL
+- Connection pooling: Oracle (`oracledb`) and Postgres (`pg`)
 
 ## Prerequisites
-- Node.js 20+
-- npm
-- SSH access to `115.244.175.130` as `pipe` (password from `.env`).
-- Oracle Instant Client available at `C:\oracle\instantclient_23_9` (Thick mode) or fallback to bundled `/app/oracle_client/instantclient_23_26`.
+- Node.js 20 or later and npm
+- SSH reachability to `115.244.175.130` as `pipe`
+- Oracle Instant Client:
+  - Preferred Windows path: `C:\oracle\instantclient_23_9`
+  - Fallback (container/Linux): `/app/oracle_client/instantclient_23_26` (bundled)
+- Network access to AWS RDS Postgres endpoint
 
-## Environment
-Configure `.env` (already present):
+## Environment (.env)
+The project expects a `.env` file at repo root. Example keys:
 ```
 NODE_ENV=development
 PORT=3005
 LOG_LEVEL=info
 
 # Oracle via SSH tunnel
-ORACLE_USER=srmplerp
-ORACLE_PASSWORD=srmplerp
+ORACLE_USER=<oracle_user>
+ORACLE_PASSWORD=<oracle_password>
 SSH_HOST=115.244.175.130
 SSH_PORT=22
 SSH_USER=pipe
-SSH_PASSWORD="@dmin*$121#"
+SSH_PASSWORD=<ssh_password>
 LOCAL_ORACLE_PORT=1522
 ORACLE_HOST=127.0.0.1
 
 # Postgres (AWS RDS)
 PG_HOST=database-3.c1wm8i46kcmm.ap-south-1.rds.amazonaws.com
 PG_PORT=5432
-PG_USER=postgres
-PG_PASSWORD=sagarpipe
+PG_USER=<pg_user>
+PG_PASSWORD=<pg_password>
 PG_DATABASE=Batchcode
 PG_SSL=true
 
 # Auth
-JWT_SECRET=choose-a-long-random-string
+JWT_SECRET=<long-random-string>
 JWT_EXPIRES_IN=1d
 ```
 
 ## Install & Run
 ```
 npm install
-npm run dev
+npm run dev   # nodemon, uses src/server.js (default PORT 3005)
+# npm start   # plain node
 ```
-Server listens on `PORT` (default 3005).
+The server bootstraps Oracle + SSH pool on startup and logs `🚀 Server running at http://localhost:<PORT>`.
 
-## API Endpoints
+## API Usage
+- Base path: `/`
+- Auth-backed routes live under `/auth`; Oracle-backed weighbridge routes live under `/first-weight`, `/second-weight`, `/invoice`, `/gate-out`, `/payment`.
+- All successful responses: `{ "success": true, "data": ... }`
+- Errors: `{ "success": false, "message": "description" }` (and may include `error` for stack details)
+- Pagination query params are consistent: `page` (default 1), `limit` (default 50), `customer` (string filter), `search` (string search across key columns).
+
 ### Auth (Postgres)
-- **POST `/auth/register`**  
-  Body:
-  ```json
-  {
-    "username": "user1",
-    "password": "plain-text",
-    "access": "optional",
-    "supervisor_name": "optional",
-    "item_name": "optional",
-    "quality_controller": "optional",
-    "role": "optional",
-    "loading_incharge": "optional"
-  }
-  ```
-  Response `201`:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "user": {
-        "id": 1,
-        "username": "user1",
-        "access": "optional",
-        "supervisor_name": "optional",
-        "item_name": "optional",
-        "quality_controller": "optional",
-        "role": "optional",
-        "loading_incharge": "optional",
-        "created_at": "2025-11-22T12:00:00.000Z",
-        "updated_at": "2025-11-22T12:00:00.000Z"
-      },
-      "token": "jwt-token"
-    }
-  }
-  ```
+- `POST /auth/register`
+  - Body: `username`, `password`, optional `access`, `supervisor_name`, `item_name`, `quality_controller`, `role`, `loading_incharge`
+  - Response 201: user record (password stored as provided) + JWT
+- `POST /auth/login`
+  - Body: `username`, `password`
+  - Response 200: user record + JWT (plain-text password comparison)
+- `POST /auth/logout`
+  - Stateless; returns success, client should discard JWT
+- `GET /auth/users`
+  - List all users
+- `GET /auth/users/:id`
+  - Fetch single user by id
+- `PUT /auth/users/:id`
+  - Body: any subset of user fields above; updates record
+- `DELETE /auth/users/:id`
+  - Deletes user; returns `{ success: true, message: "User deleted" }`
 
-- **POST `/auth/login`**  
-  Body:
-  ```json
-  { "username": "user1", "password": "plain-text" }
-  ```
-  Response `200`:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "user": {
-        "id": 1,
-        "username": "user1",
-        "access": "optional",
-        "supervisor_name": "optional",
-        "item_name": "optional",
-        "quality_controller": "optional",
-        "role": "optional",
-        "loading_incharge": "optional",
-        "created_at": "2025-11-22T12:00:00.000Z",
-        "updated_at": "2025-11-22T12:00:00.000Z"
-      },
-      "token": "jwt-token"
-    }
-  }
-  ```
+### First Weight (Oracle)
+- `GET /first-weight/pending`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Data fields: planned timestamp, order/vr numbers, party name, truck + driver info
+- `GET /first-weight/history`
+  - Same filters; includes actual timestamp and `wslip_no`
 
-- **POST `/auth/logout`**  
-  Stateless; returns success and expects the client to discard the JWT.
+### Second Weight (Oracle)
+- `GET /second-weight/pending`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Data fields: planned timestamp, in-date, order/gate vrnos, weigh-slip, customer remark, truck
+- `GET /second-weight/history`
+  - Same filters; includes `outdate`
 
-- **GET `/auth/users`**  
-  List all users.
-  Response `200`:
-  ```json
-  { "success": true, "data": [ { "id": 1, "username": "user1", "...": "..." } ] }
-  ```
+### Invoice (Oracle)
+- `GET /invoice/pending`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Returns vehicles that exited today with a first weight recorded but not yet invoiced (filters on `wslipno` not in `view_itemtran_engine`)
+- `GET /invoice/history`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Fields: planned/actual timestamps, order/gate vrnos, invoice number, party name, truck, waybill
 
-- **GET `/auth/users/:id`**  
-  Fetch one user by id. Response `200` similar to above.
+### Gate Out (Oracle)
+- `GET /gate-out/pending`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Returns trucks with invoices generated and pending gate-out
+- `GET /gate-out/history`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Fields: outdate, order vrno, gate vrno, weigh-slip, ref vrno, party, truck
+- `GET /gate-out/customers`
+  - Returns distinct customer names from gate transactions
 
-- **PUT `/auth/users/:id`**  
-  Body (any subset of fields):
-  ```json
-  {
-    "username": "newname",
-    "password": "new-plain-password",
-    "access": "optional",
-    "supervisor_name": "optional",
-    "item_name": "optional",
-    "quality_controller": "optional",
-    "role": "optional",
-    "loading_incharge": "optional"
-  }
-  ```
-  Response `200` with updated user.
+### Payment (Oracle)
+- `GET /payment/pending`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Aggregated invoice amounts with received/balance; filters to outstanding payments
+- `GET /payment/history`
+  - Query: `page`, `limit`, `customer`, `search`
+  - Settled payments with totals and received amounts
+- `GET /payment/customers`
+  - Distinct customer names from payment data
 
-- **DELETE `/auth/users/:id`**  
-  Response `200`: `{ "success": true, "message": "User deleted" }`
+### Dashboard (Oracle)
+- `GET /dashboard/summary`
+  - Returns aggregate counts: `totalgatein`, `totalgateout`, `pendinggatepass` for gate transactions since 01-Apr-2025 (filters cancelled records out).
 
-### Weighbridge (Oracle via SSH tunnel)
-All return `{ "success": true, "data": [...] }` on success.
-- **GET `/first-weight/...`** – first weight data (see routes for specifics).
-- **GET `/second-weight/pending`** – pending second weight list with filters `page`, `limit`, `customer`, `search`.
-- **GET `/second-weight/history`** – historical second weights with filters `page`, `limit`, `customer`, `search`.
-- **GET `/invoice/...`**, **`/gate-out/...`**, **`/payment/...`** – see respective route files for payloads.
-
-### Error Shape
-Errors respond with:
-```json
-{ "success": false, "message": "description" }
-```
+## Legacy/Experimental (not wired into `npm start`)
+`src/index.js` contains older Oracle-only utilities (`/users`, `/schema`, `/current-schema`, `/store-indent` CRUD) and runs on port 3000. The main entry (`src/server.js`) does not mount these routes; run that file directly only if you need the legacy utilities.
+  
