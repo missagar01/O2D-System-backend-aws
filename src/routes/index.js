@@ -1,7 +1,7 @@
 import { Router } from "express";
-import firstWeightRoutes from "./firstWeight.routes.js"; // 👈 Add this
-import secondWeightRoutes from "./secondWeight.routes.js"; // 👈 Add this
-import invoiceRoutes from "./invoice.routes.js"; // 👈 Add this
+import firstWeightRoutes from "./firstWeight.routes.js";
+import secondWeightRoutes from "./secondWeight.routes.js";
+import invoiceRoutes from "./invoice.routes.js";
 import gateOutRoutes from "./gateOut.routes.js";
 import paymentRoutes from "./payment.routes.js";
 import authRoutes from "./auth.routes.js";

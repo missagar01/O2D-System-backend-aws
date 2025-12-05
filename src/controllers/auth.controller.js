@@ -6,6 +6,7 @@ import {
   findUserById,
   updateUser,
   deleteUser,
+  bulkUpdateUserPermissions,
 } from "../services/auth.service.js";
 
 function signToken(user) {
@@ -162,5 +163,27 @@ export async function handleDeleteUser(req, res) {
     return res.status(200).json({ success: true, message: "User deleted" });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || "Failed to delete user" });
+  }
+}
+
+export async function handleBulkUpdatePermissions(req, res) {
+  try {
+    const { users } = req.body || {};
+
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "users array is required",
+      });
+    }
+
+    const updated = await bulkUpdateUserPermissions(users);
+    return res.status(200).json({ success: true, data: updated });
+  } catch (err) {
+    const status = err.status || 500;
+    return res.status(status).json({
+      success: false,
+      message: err.message || "Failed to update permissions",
+    });
   }
 }

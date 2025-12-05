@@ -56,15 +56,15 @@ The server bootstraps Oracle + SSH pool on startup and logs `🚀 Server running
 
 ## API Usage
 - Base path: `/`
-- Auth-backed routes live under `/auth`; Oracle-backed weighbridge routes live under `/first-weight`, `/second-weight`, `/invoice`, `/gate-out`, `/payment`.
 - All successful responses: `{ "success": true, "data": ... }`
-- Errors: `{ "success": false, "message": "description" }` (and may include `error` for stack details)
-- Pagination query params are consistent: `page` (default 1), `limit` (default 50), `customer` (string filter), `search` (string search across key columns).
+- Errors: `{ "success": false, "message": "description" }` (and may include `error`)
+- Pagination (where supported): `page` (default 1), `limit` (default 50), `customer`, `search`.
 
 ### Auth (Postgres)
 - `POST /auth/register`
   - Body: `username`, `password`, optional `access`, `supervisor_name`, `item_name`, `quality_controller`, `role`, `loading_incharge`
   - Response 201: user record (password stored as provided) + JWT
+  - `role` is used as the page-access list (e.g., `"Dashboard, Orders, Gate Entry, First Weight, Load Vehicle, Second Weight, Generate Invoice, Gate Out Entry, Payment"`)
 - `POST /auth/login`
   - Body: `username`, `password`
   - Response 200: user record + JWT (plain-text password comparison)
@@ -78,6 +78,10 @@ The server bootstraps Oracle + SSH pool on startup and logs `🚀 Server running
   - Body: any subset of user fields above; updates record
 - `DELETE /auth/users/:id`
   - Deletes user; returns `{ success: true, message: "User deleted" }`
+- `POST /auth/users/permissions`
+  - Auth: Bearer JWT (any signed-in user)
+  - Body: `{ "users": [ { "id": number, "permissions": { "read": bool, "write": bool, "update": bool, "delete": bool } } ] }`
+  - Stores flags in Postgres `user_permissions` JSON column; returns updated user records
 
 ### First Weight (Oracle)
 - `GET /first-weight/pending`
