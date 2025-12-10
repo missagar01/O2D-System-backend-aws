@@ -4,8 +4,6 @@ import oracledb from "oracledb";
 // 🟢 Payment Pending Data with Filters
 export async function getPendingPaymentData(offset = 0, limit = 50, customer = '', search = '') {
   let baseQuery = `
-    SELECT * FROM (
-      SELECT a.*, ROWNUM rnum FROM (
         SELECT 
           t.lastupdate + INTERVAL '7' DAY AS planned_timestamp,
           t.vrdate,
@@ -55,13 +53,9 @@ export async function getPendingPaymentData(offset = 0, limit = 50, customer = '
         GROUP BY t.lastupdate, t.order_vrno, t.gate_vrno, t.vrno, t.truckno,
                  SUBSTR(t.item_code,1,3), t.acc_code, t.div_code, t.vrdate
         ORDER BY t.lastupdate ASC
-      ) a
-      WHERE ROWNUM <= :endRow
-    )
-    WHERE rnum > :startRow
   `;
 
-  const params = { startRow: offset, endRow: offset + limit };
+  const params = {};
   let connection;
 
   try {
@@ -80,9 +74,33 @@ export async function getPendingPaymentData(offset = 0, limit = 50, customer = '
 
 // 🟣 Payment History Data with Filters
 export async function getPaymentHistoryData(offset = 0, limit = 50, customer = '', search = '') {
-  let baseQuery = `
-    SELECT * FROM (
-      SELECT a.*, ROWNUM rnum FROM (
+  const baseFilters = [
+    "t.entity_code = 'SR'",
+    "t.series = 'SA'",
+    "t.acc_code NOT IN ('4CA01','ZGA01', 'ZGA02', 'ZMA01', 'ZPA01', 'ZSH01', 'ZSO01', 'ZSO02', 'ZSO03', 'ZSO04','4AL01','1GA18')",
+    "t.receipt_vrdate IS NOT NULL",
+    "(SELECT SUM(a.alloc_amt) FROM alloc_tran a WHERE a.dr_vrno = t.vrno) = t.dramt",
+    "SUBSTR(t.item_code,1,3) IN ('F01','F02','F03')",
+    "t.vrdate >= TO_DATE('01-APR-2025', 'DD-MON-YYYY')"
+  ];
+
+  if (customer) {
+    const sanitizedCustomer = customer.replace(/'/g, "''");
+    baseFilters.push(`UPPER(lhs_utility.get_name('acc_code', t.acc_code)) LIKE UPPER('%${sanitizedCustomer}%')`);
+  }
+
+  if (search) {
+    const sanitizedSearch = search.replace(/'/g, "''");
+    baseFilters.push(`(
+      UPPER(t.vrno) LIKE UPPER('%${sanitizedSearch}%') OR
+      UPPER(t.order_vrno) LIKE UPPER('%${sanitizedSearch}%') OR
+      UPPER(t.gate_vrno) LIKE UPPER('%${sanitizedSearch}%') OR
+      UPPER(t.truckno) LIKE UPPER('%${sanitizedSearch}%') OR
+      UPPER(lhs_utility.get_name('acc_code', t.acc_code)) LIKE UPPER('%${sanitizedSearch}%')
+    )`);
+  }
+
+  const innerQuery = `
         SELECT 
           t.lastupdate + INTERVAL '7' DAY AS planned_timestamp,
           t.vrdate,
@@ -102,42 +120,14 @@ export async function getPaymentHistoryData(offset = 0, limit = 50, customer = '
           (SELECT SUM(a.alloc_amt) FROM alloc_tran a WHERE a.dr_vrno = t.vrno) AS received_amount,
           (SUM(t.dramt) - (SELECT SUM(a.alloc_amt) FROM alloc_tran a WHERE a.dr_vrno = t.vrno)) AS balance_amount
         FROM view_itemtran_engine t
-        WHERE t.entity_code = 'SR'
-          AND t.series = 'SA'
-          AND t.acc_code NOT IN ('4CA01','ZGA01', 'ZGA02', 'ZMA01', 'ZPA01', 'ZSH01', 'ZSO01', 'ZSO02', 'ZSO03', 'ZSO04','4AL01','1GA18')
-          AND t.receipt_vrdate IS NOT NULL
-          AND (SELECT SUM(a.alloc_amt) FROM alloc_tran a WHERE a.dr_vrno = t.vrno) = t.dramt
-          AND SUBSTR(t.item_code,1,3) IN ('F01','F02','F03')
-          AND t.vrdate >= TO_DATE('01-APR-2025', 'DD-MON-YYYY')
-  `;
-
-  // ✅ Filter by customer
-  if (customer) {
-    baseQuery += ` AND UPPER(lhs_utility.get_name('acc_code', t.acc_code)) LIKE UPPER('%${customer.replace(/'/g, "''")}%')`;
-  }
-
-  // ✅ Filter by search
-  if (search) {
-    baseQuery += ` AND (
-      UPPER(t.vrno) LIKE UPPER('%${search.replace(/'/g, "''")}%') OR
-      UPPER(t.order_vrno) LIKE UPPER('%${search.replace(/'/g, "''")}%') OR
-      UPPER(t.gate_vrno) LIKE UPPER('%${search.replace(/'/g, "''")}%') OR
-      UPPER(t.truckno) LIKE UPPER('%${search.replace(/'/g, "''")}%') OR
-      UPPER(lhs_utility.get_name('acc_code', t.acc_code)) LIKE UPPER('%${search.replace(/'/g, "''")}%')
-    )`;
-  }
-
-  baseQuery += `
+        WHERE ${baseFilters.join("\n          AND ")}
         GROUP BY t.lastupdate, t.order_vrno, t.gate_vrno, t.vrno, t.truckno,
                  SUBSTR(t.item_code,1,3), t.acc_code, t.div_code, t.vrdate
         ORDER BY t.lastupdate ASC
-      ) a
-      WHERE ROWNUM <= :endRow
-    )
-    WHERE rnum > :startRow
   `;
 
-  const params = { startRow: offset, endRow: offset + limit };
+  const baseQuery = innerQuery;
+  const params = {};
   let connection;
 
   try {
